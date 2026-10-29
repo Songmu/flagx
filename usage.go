@@ -31,14 +31,33 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet, synopsis, description string) {
 }
 
 // PrintDefaults writes only the formatted option list to fs.Output.
-// Pointer-identical values of the same type are displayed as aliases. Missing
-// help and h names are included for flag's built-in help handling, not registered.
+// Names registered together are displayed in their specified order.
+// Pointer-identical values of the same type are also displayed as aliases.
+// Missing help and h names are included for flag's built-in help handling,
+// not registered.
 func PrintDefaults(fs *flag.FlagSet) {
 	printDefaults(fs.Output(), fs)
 }
 
 type option struct {
 	flags []*flag.Flag
+}
+
+func (o option) sortName() string {
+	var long, short string
+	for _, f := range o.flags {
+		if utf8.RuneCountInString(f.Name) == 1 {
+			if short == "" || f.Name < short {
+				short = f.Name
+			}
+		} else if long == "" || f.Name < long {
+			long = f.Name
+		}
+	}
+	if long != "" {
+		return long
+	}
+	return short
 }
 
 func (o option) label() string {
@@ -67,17 +86,36 @@ func options(fs *flag.FlagSet) []option {
 	}
 	var result []option
 	byPointer := make(map[identity]int)
+	byGroup := make(map[int]int)
+	declared := registeredNames(fs)
 	fs.VisitAll(func(f *flag.Flag) {
-		v := reflect.ValueOf(f.Value)
-		if v.IsValid() && v.Kind() == reflect.Pointer && !v.IsNil() {
-			key := identity{v.Type(), v.Pointer()}
-			if i, ok := byPointer[key]; ok {
-				result[i].flags = append(result[i].flags, f)
-				return
+		index := -1
+		order, known := declared[f.Name]
+		if known {
+			if i, ok := byGroup[order.group]; ok {
+				index = i
 			}
-			byPointer[key] = len(result)
 		}
-		result = append(result, option{flags: []*flag.Flag{f}})
+		v := reflect.ValueOf(f.Value)
+		pointer := v.IsValid() && v.Kind() == reflect.Pointer && !v.IsNil()
+		var key identity
+		if pointer {
+			key = identity{v.Type(), v.Pointer()}
+			if i, ok := byPointer[key]; ok {
+				index = i
+			}
+		}
+		if index < 0 {
+			index = len(result)
+			result = append(result, option{})
+		}
+		result[index].flags = append(result[index].flags, f)
+		if known {
+			byGroup[order.group] = index
+		}
+		if pointer {
+			byPointer[key] = index
+		}
 	})
 
 	var help option
@@ -92,6 +130,14 @@ func options(fs *flag.FlagSet) []option {
 	for _, o := range result {
 		sort.Slice(o.flags, func(i, j int) bool {
 			a, b := o.flags[i].Name, o.flags[j].Name
+			aOrder, aKnown := declared[a]
+			bOrder, bKnown := declared[b]
+			if aKnown != bKnown {
+				return aKnown
+			}
+			if aKnown {
+				return aOrder.rank < bOrder.rank
+			}
 			aShort, bShort := utf8.RuneCountInString(a) == 1, utf8.RuneCountInString(b) == 1
 			if aShort != bShort {
 				return !aShort
@@ -100,7 +146,7 @@ func options(fs *flag.FlagSet) []option {
 		})
 	}
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].flags[0].Name < result[j].flags[0].Name
+		return result[i].sortName() < result[j].sortName()
 	})
 	return result
 }

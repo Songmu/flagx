@@ -17,10 +17,10 @@ func sampleFlags() *flag.FlagSet {
 	var verbose bool
 	var jobs int
 	var timeout time.Duration
-	flagx.StringVar(fs, &output, "output", "o", "", "write to `file`")
-	flagx.BoolVar(fs, &verbose, "verbose", "v", false, "verbose output")
-	flagx.IntVar(fs, &jobs, "jobs", "j", 4, "number of `workers`")
-	flagx.DurationVar(fs, &timeout, "timeout", "t", 30*time.Second, "timeout after `duration`")
+	flagx.StringVar(fs, &output, "output|o", "", "write to `file`")
+	flagx.BoolVar(fs, &verbose, "verbose|v", false, "verbose output")
+	flagx.IntVar(fs, &jobs, "jobs|j", 4, "number of `workers`")
+	flagx.DurationVar(fs, &timeout, "timeout|t", 30*time.Second, "timeout after `duration`")
 	return fs
 }
 
@@ -129,7 +129,7 @@ func TestAliasIdentity(t *testing.T) {
 	// A different Value type at the same address must not be merged.
 	fs.Var((*otherString)(&shared), "other", "other type")
 	custom := listValue{"first"}
-	flagx.Var(fs, &custom, "custom", "c", "custom list")
+	flagx.Var(fs, &custom, "custom|c", "custom list")
 	nonComparable := mapValue{"value": "entry"}
 	fs.Var(nonComparable, "map-one", "map one")
 	fs.Var(nonComparable, "map-two", "map two")
@@ -197,5 +197,57 @@ func TestLongAndMultilineUsage(t *testing.T) {
 	}
 	if want := "  -v" + strings.Repeat(" ", 28) + "verbose\n"; !strings.Contains(out.String(), want) {
 		t.Errorf("short-only layout:\n%s", out.String())
+	}
+}
+
+func TestSpecifiedNameOrder(t *testing.T) {
+	for _, names := range []string{"o|output", "bb|aa", "z|a", "output|out|o"} {
+		t.Run(names, func(t *testing.T) {
+			t.Parallel()
+			fs := flag.NewFlagSet("test", flag.ContinueOnError)
+			var value string
+			flagx.StringVar(fs, &value, names, "", "an option")
+			parts := strings.Split(names, "|")
+			want := "-" + strings.Join(parts, ", -") + " string"
+			var out bytes.Buffer
+			fs.SetOutput(&out)
+			flagx.PrintDefaults(fs)
+			if !strings.Contains(out.String(), want) {
+				t.Errorf("missing specified order %q:\n%s", want, out.String())
+			}
+			for _, name := range parts {
+				f := fs.Lookup(name)
+				if placeholder, _ := flag.UnquoteUsage(f); placeholder != "string" {
+					t.Errorf("standard placeholder = %q, want string", placeholder)
+				}
+				if _, ok := f.Value.(flag.Getter); !ok {
+					t.Errorf("%s lost flag.Getter", name)
+				}
+			}
+		})
+	}
+}
+
+func TestDeclaredAndInferredAliases(t *testing.T) {
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	var value string
+	fs.StringVar(&value, "direct", "", "direct flag")
+	flagx.StringVar(fs, &value, "z|zulu|alpha", "", "declared aliases")
+	flagx.StringVar(fs, &value, "extra|e", "", "more aliases")
+	custom := mapValue{"value": "entry"}
+	flagx.Var(fs, custom, "named-map|m", "named map")
+	fs.Bool("middle", false, "middle option")
+	var out bytes.Buffer
+	fs.SetOutput(&out)
+	flagx.PrintDefaults(fs)
+	want := "-z, -zulu, -alpha, -extra, -e, -direct string"
+	if !strings.HasPrefix(out.String(), "  "+want) {
+		t.Errorf("option sorting or alias order:\n%s", out.String())
+	}
+	if !strings.Contains(out.String(), "-named-map, -m value") {
+		t.Errorf("non-pointer declared aliases were not combined:\n%s", out.String())
+	}
+	if strings.Count(out.String(), "named map (default entry)") != 1 {
+		t.Errorf("non-pointer aliases duplicated:\n%s", out.String())
 	}
 }

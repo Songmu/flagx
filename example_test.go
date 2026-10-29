@@ -13,8 +13,8 @@ func Example() {
 	fs.SetOutput(os.Stdout)
 	var output string
 	var verbose bool
-	flagx.StringVar(fs, &output, "output", "o", "", "write to `file`")
-	flagx.BoolVar(fs, &verbose, "verbose", "v", false, "verbose output")
+	flagx.StringVar(fs, &output, "output|o", "", "write to `file`")
+	flagx.BoolVar(fs, &verbose, "verbose|v", false, "verbose output")
 	fs.Usage = flagx.Usage(fs, "myapp [options] <input>", "Process input files.")
 	if err := fs.Parse([]string{"-o", "result.txt", "--verbose", "input.txt"}); err != nil {
 		return

@@ -11,7 +11,7 @@ flagx
 [license]: https://github.com/Songmu/flagx/blob/main/LICENSE
 [PkgGoDev]: https://pkg.go.dev/github.com/Songmu/flagx
 
-Small helpers for long/short flag aliases and formatted help, built on Go's
+Small helpers for flag aliases and formatted help, built on Go's
 standard `flag.FlagSet`. No dependencies or changes to flag parsing.
 
 ## Synopsis
@@ -24,10 +24,10 @@ var verbose bool
 var jobs int
 var timeout time.Duration
 
-flagx.StringVar(fs, &output, "output", "o", "", "write to `file`")
-flagx.BoolVar(fs, &verbose, "verbose", "v", false, "verbose output")
-flagx.IntVar(fs, &jobs, "jobs", "j", 4, "number of `workers`")
-flagx.DurationVar(fs, &timeout, "timeout", "t", 30*time.Second, "timeout after `duration`")
+flagx.StringVar(fs, &output, "output|o", "", "write to `file`")
+flagx.BoolVar(fs, &verbose, "verbose|v", false, "verbose output")
+flagx.IntVar(fs, &jobs, "jobs|j", 4, "number of `workers`")
+flagx.DurationVar(fs, &timeout, "timeout|t", 30*time.Second, "timeout after `duration`")
 
 fs.Usage = flagx.Usage(fs, "myapp [options] <input>", "Process input files.")
 fs.Parse(os.Args[1:])
@@ -51,24 +51,32 @@ Options:
 
 ## Description
 
-`StringVar`, `BoolVar`, `IntVar`, and `DurationVar` register both names against
-the same variable. `Var` does the same for a custom `flag.Value`. Pass names
-without hyphens; an empty short name registers only the long name. Duplicate
-and invalid names follow the standard library's behavior.
+`StringVar`, `BoolVar`, `IntVar`, and `DurationVar` register one or more
+`|`-separated names against the same variable. `Var` does the same for a custom
+`flag.Value`. Names omit leading hyphens and are split literally, without
+trimming whitespace. Empty names panic; duplicate and invalid names otherwise
+follow the standard library's behavior.
+
+Names are aliases, not a required long/short pair: `"output"`, `"output|o"`,
+`"o|output"`, `"aa|bb"`, and `"output|out|o"` are all accepted. Help preserves the
+specified name order, so `"o|output"` displays as `-o, -output string`.
 
 Both `-output` and `--output` work, as do `-o` and `--o`. Standard `flag`
 semantics still apply: parsing stops at the first positional argument, short
 flags cannot be bundled, and bool flags do not require a value.
 
-Help combines values with the same pointer and concrete type, including flags
-registered directly through `flag.FlagSet`. Single-character names are shown
-after longer names, all with one hyphen. Options are sorted by their first long
-name, or their short name if there is no long name. Multiple names of each kind
-are sorted lexicographically. The first displayed name supplies the usage and
-default value when aliases have different metadata.
+Help combines names registered together and also values with the same pointer
+and concrete type, including flags registered directly through `flag.FlagSet`.
+Within each option, flagx-registered names retain their registration order;
+directly registered names follow, sorted long before short and lexicographically
+within each kind because their registration order is unavailable. All names
+have one hyphen. Options remain sorted by their lexicographically smallest long
+name, or their smallest short name if there is no long name, independently of
+alias display order. The first displayed name supplies the usage and default
+value when aliases have different metadata.
 
-This pointer-based grouping is a heuristic, not an explicit alias registry.
-Non-pointer values are not grouped, even if they share backing storage.
+Pointer-based grouping of separately registered flags is a heuristic.
+Non-pointer values are grouped only when their names are registered together.
 Backquoted placeholders use `flag.UnquoteUsage`; bool placeholders are omitted.
 Nonzero registration-time defaults are shown, with string defaults quoted.
 Custom values are compared with their type's zero value; if its `String` method

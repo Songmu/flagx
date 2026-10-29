@@ -1,4 +1,4 @@
-// Package flagx adds long/short flag aliases and formatted help to the standard
+// Package flagx adds flag aliases and formatted help to the standard
 // library's flag.FlagSet without changing its parsing rules.
 package flagx
 
@@ -7,47 +7,43 @@ import (
 	"time"
 )
 
-// Var registers value under long and, if nonempty, short.
-// Names omit leading hyphens. Both names share value.
-func Var(fs *flag.FlagSet, value flag.Value, long, short, usage string) {
-	fs.Var(value, long, usage)
-	if short != "" {
-		fs.Var(value, short, usage)
-	}
+// Var registers value under each name in the |-separated names string.
+// Names omit leading hyphens and are displayed in the specified order.
+// Empty names panic; duplicate and invalid names follow flag.FlagSet behavior.
+func Var(fs *flag.FlagSet, value flag.Value, names, usage string) {
+	registerNames(fs, names, func(name string) {
+		fs.Var(value, name, usage)
+	})
 }
 
-// StringVar registers a string flag under long and, if nonempty, short.
-// Both names write to p, which is initialized to value.
-func StringVar(fs *flag.FlagSet, p *string, long, short, value, usage string) {
-	fs.StringVar(p, long, value, usage)
-	if short != "" {
-		fs.StringVar(p, short, value, usage)
-	}
+// StringVar registers a string flag under the |-separated names, as in Var.
+// All names write to p, which is initialized to value.
+func StringVar(fs *flag.FlagSet, p *string, names, value, usage string) {
+	registerNames(fs, names, func(name string) {
+		fs.StringVar(p, name, value, usage)
+	})
 }
 
-// BoolVar registers a boolean flag under long and, if nonempty, short.
-// Both names write to p, which is initialized to value.
-func BoolVar(fs *flag.FlagSet, p *bool, long, short string, value bool, usage string) {
-	fs.BoolVar(p, long, value, usage)
-	if short != "" {
-		fs.BoolVar(p, short, value, usage)
-	}
+// BoolVar registers a boolean flag under the |-separated names, as in Var.
+// All names write to p, which is initialized to value.
+func BoolVar(fs *flag.FlagSet, p *bool, names string, value bool, usage string) {
+	registerNames(fs, names, func(name string) {
+		fs.BoolVar(p, name, value, usage)
+	})
 }
 
-// IntVar registers an integer flag under long and, if nonempty, short.
-// Both names write to p, which is initialized to value.
-func IntVar(fs *flag.FlagSet, p *int, long, short string, value int, usage string) {
-	fs.IntVar(p, long, value, usage)
-	if short != "" {
-		fs.IntVar(p, short, value, usage)
-	}
+// IntVar registers an integer flag under the |-separated names, as in Var.
+// All names write to p, which is initialized to value.
+func IntVar(fs *flag.FlagSet, p *int, names string, value int, usage string) {
+	registerNames(fs, names, func(name string) {
+		fs.IntVar(p, name, value, usage)
+	})
 }
 
-// DurationVar registers a duration flag under long and, if nonempty, short.
-// Both names write to p, which is initialized to value.
-func DurationVar(fs *flag.FlagSet, p *time.Duration, long, short string, value time.Duration, usage string) {
-	fs.DurationVar(p, long, value, usage)
-	if short != "" {
-		fs.DurationVar(p, short, value, usage)
-	}
+// DurationVar registers a duration flag under the |-separated names, as in Var.
+// All names write to p, which is initialized to value.
+func DurationVar(fs *flag.FlagSet, p *time.Duration, names string, value time.Duration, usage string) {
+	registerNames(fs, names, func(name string) {
+		fs.DurationVar(p, name, value, usage)
+	})
 }
