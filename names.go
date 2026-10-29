@@ -3,6 +3,7 @@ package flagx
 import (
 	"flag"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"weak"
@@ -19,7 +20,7 @@ func registerNames(fs *flag.FlagSet, names string, register func(string)) {
 	list := strings.Split(names, "|")
 	for _, name := range list {
 		if name == "" {
-			panic("flagx: empty flag name in " + names)
+			panic("flagx: empty flag name in " + strconv.Quote(names))
 		}
 	}
 	for _, name := range list {

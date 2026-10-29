@@ -102,17 +102,33 @@ func TestBoolWithoutArgument(t *testing.T) {
 }
 
 func TestInvalidNames(t *testing.T) {
-	for _, names := range []string{"", "|o", "option|", "option||o", "option|option", "-option", "option=value"} {
-		t.Run(names, func(t *testing.T) {
+	tests := []struct {
+		names string
+		want  string
+	}{
+		{"", `flagx: empty flag name in ""`},
+		{"|o", `flagx: empty flag name in "|o"`},
+		{"option|", `flagx: empty flag name in "option|"`},
+		{"option||o", `flagx: empty flag name in "option||o"`},
+		{"a\n|", `flagx: empty flag name in "a\n|"`},
+		{"option|option", ""},
+		{"-option", ""},
+		{"option=value", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.names, func(t *testing.T) {
 			fs := flag.NewFlagSet("test", flag.ContinueOnError)
 			fs.SetOutput(io.Discard)
 			defer func() {
-				if recover() == nil {
-					t.Errorf("registration of %q did not panic", names)
+				got := recover()
+				if got == nil {
+					t.Errorf("registration of %q did not panic", tt.names)
+				} else if tt.want != "" && fmt.Sprint(got) != tt.want {
+					t.Errorf("panic = %q, want %q", got, tt.want)
 				}
 			}()
 			var value string
-			flagx.StringVar(fs, &value, names, "", "an option")
+			flagx.StringVar(fs, &value, tt.names, "", "an option")
 		})
 	}
 }
