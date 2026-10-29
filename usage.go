@@ -32,6 +32,8 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet, synopsis, description string) {
 
 // PrintDefaults writes only the formatted option list to fs.Output.
 // Names registered together are displayed in their specified order.
+// Options registered through flagx come first, in registration order, followed
+// by directly registered options in lexical order.
 // Pointer-identical values of the same type are also displayed as aliases.
 // Missing help and h names are included for flag's built-in help handling,
 // not registered.
@@ -41,6 +43,7 @@ func PrintDefaults(fs *flag.FlagSet) {
 
 type option struct {
 	flags []*flag.Flag
+	order int
 }
 
 func (o option) sortName() string {
@@ -107,18 +110,21 @@ func options(fs *flag.FlagSet) []option {
 		}
 		if index < 0 {
 			index = len(result)
-			result = append(result, option{})
+			result = append(result, option{order: -1})
 		}
 		result[index].flags = append(result[index].flags, f)
 		if known {
 			byGroup[order.group] = index
+			if result[index].order < 0 || order.group < result[index].order {
+				result[index].order = order.group
+			}
 		}
 		if pointer {
 			byPointer[key] = index
 		}
 	})
 
-	var help option
+	help := option{order: -1}
 	for _, name := range []string{"help", "h"} {
 		if fs.Lookup(name) == nil {
 			help.flags = append(help.flags, &flag.Flag{Name: name, Usage: "Show this help message"})
@@ -146,6 +152,16 @@ func options(fs *flag.FlagSet) []option {
 		})
 	}
 	sort.Slice(result, func(i, j int) bool {
+		a, b := result[i].order, result[j].order
+		if a != b {
+			if a < 0 {
+				return false
+			}
+			if b < 0 {
+				return true
+			}
+			return a < b
+		}
 		return result[i].sortName() < result[j].sortName()
 	})
 	return result

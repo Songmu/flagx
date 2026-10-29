@@ -28,7 +28,7 @@ func Example() {
 	// Process input files.
 	//
 	// Options:
-	//   -help, -h         Show this help message
 	//   -output, -o file  write to file
 	//   -verbose, -v      verbose output
+	//   -help, -h         Show this help message
 }

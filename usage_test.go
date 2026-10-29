@@ -24,11 +24,11 @@ func sampleFlags() *flag.FlagSet {
 	return fs
 }
 
-const sampleDefaults = `  -help, -h              Show this help message
-  -jobs, -j workers      number of workers (default 4)
-  -output, -o file       write to file
-  -timeout, -t duration  timeout after duration (default 30s)
+const sampleDefaults = `  -output, -o file       write to file
   -verbose, -v           verbose output
+  -jobs, -j workers      number of workers (default 4)
+  -timeout, -t duration  timeout after duration (default 30s)
+  -help, -h              Show this help message
 `
 
 func TestUsage(t *testing.T) {
@@ -249,5 +249,27 @@ func TestDeclaredAndInferredAliases(t *testing.T) {
 	}
 	if strings.Count(out.String(), "named map (default entry)") != 1 {
 		t.Errorf("non-pointer aliases duplicated:\n%s", out.String())
+	}
+}
+
+func TestOptionRegistrationOrder(t *testing.T) {
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	fs.Bool("beta", false, "direct option registered first")
+	var first bool
+	fs.BoolVar(&first, "aardvark", false, "direct alias")
+	flagx.BoolVar(fs, &first, "zulu|z", false, "first registered option")
+	fs.Bool("middle", false, "direct option")
+	var second bool
+	flagx.BoolVar(fs, &second, "alpha|a", false, "second registered option")
+	var out bytes.Buffer
+	fs.SetOutput(&out)
+	flagx.PrintDefaults(fs)
+	previous := -1
+	for _, name := range []string{"-zulu, -z, -aardvark", "-alpha, -a", "-beta", "-help, -h", "-middle"} {
+		index := strings.Index(out.String(), "  "+name)
+		if index <= previous {
+			t.Fatalf("option %q missing or out of order:\n%s", name, out.String())
+		}
+		previous = index
 	}
 }

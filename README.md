@@ -42,11 +42,11 @@ Usage: myapp [options] <input>
 Process input files.
 
 Options:
-  -help, -h              Show this help message
-  -jobs, -j workers      number of workers (default 4)
   -output, -o file       write to file
-  -timeout, -t duration  timeout after duration (default 30s)
   -verbose, -v           verbose output
+  -jobs, -j workers      number of workers (default 4)
+  -timeout, -t duration  timeout after duration (default 30s)
+  -help, -h              Show this help message
 ```
 
 ## Description
@@ -70,10 +70,14 @@ and concrete type, including flags registered directly through `flag.FlagSet`.
 Within each option, flagx-registered names retain their registration order;
 directly registered names follow, sorted long before short and lexicographically
 within each kind because their registration order is unavailable. All names
-have one hyphen. Options remain sorted by their lexicographically smallest long
-name, or their smallest short name if there is no long name, independently of
-alias display order. The first displayed name supplies the usage and default
-value when aliases have different metadata.
+have one hyphen.
+
+Options registered through flagx come first, in registration order. Options
+registered only through `FlagSet` follow, sorted by their lexicographically
+smallest long name, or their smallest short name if there is no long name.
+An option combining both kinds of registration uses its first flagx registration
+position. The first displayed name supplies the usage and default value when
+aliases have different metadata.
 
 Pointer-based grouping of separately registered flags is a heuristic.
 Non-pointer values are grouped only when their names are registered together.
