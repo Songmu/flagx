@@ -80,7 +80,8 @@ position. The first displayed name supplies the usage and default value when
 aliases have different metadata.
 
 Pointer-based grouping of separately registered flags is a heuristic.
-Non-pointer values are grouped only when their names are registered together.
+Non-pointer values and pointers to zero-sized values are grouped only when their
+names are registered together.
 Backquoted placeholders use `flag.UnquoteUsage`; bool placeholders are omitted.
 Nonzero registration-time defaults are shown, with string defaults quoted.
 Custom values are compared with their type's zero value; if its `String` method

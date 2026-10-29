@@ -273,3 +273,27 @@ func TestOptionRegistrationOrder(t *testing.T) {
 		previous = index
 	}
 }
+
+type zeroSizeValue struct{}
+
+func (*zeroSizeValue) String() string   { return "" }
+func (*zeroSizeValue) Set(string) error { return nil }
+
+func TestZeroSizeValues(t *testing.T) {
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	value := &zeroSizeValue{}
+	fs.Var(value, "first", "first action")
+	fs.Var(value, "second", "second action")
+	flagx.Var(fs, value, "declared|d", "declared action")
+	var out bytes.Buffer
+	fs.SetOutput(&out)
+	flagx.PrintDefaults(fs)
+	for _, want := range []string{
+		"-first value", "-second value", "-declared, -d value",
+		"first action", "second action", "declared action",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("missing %q:\n%s", want, out.String())
+		}
+	}
+}

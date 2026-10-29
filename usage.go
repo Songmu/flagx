@@ -34,7 +34,8 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet, synopsis, description string) {
 // Names registered together are displayed in their specified order.
 // Options registered through flagx come first, in registration order, followed
 // by directly registered options in lexical order.
-// Pointer-identical values of the same type are also displayed as aliases.
+// Pointers to non-zero-sized values with the same type and address are also
+// displayed as aliases.
 // Missing help and h names are included for flag's built-in help handling,
 // not registered.
 func PrintDefaults(fs *flag.FlagSet) {
@@ -100,7 +101,7 @@ func options(fs *flag.FlagSet) []option {
 			}
 		}
 		v := reflect.ValueOf(f.Value)
-		pointer := v.IsValid() && v.Kind() == reflect.Pointer && !v.IsNil()
+		pointer := v.IsValid() && v.Kind() == reflect.Pointer && !v.IsNil() && v.Type().Elem().Size() > 0
 		var key identity
 		if pointer {
 			key = identity{v.Type(), v.Pointer()}
