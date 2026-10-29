@@ -107,8 +107,8 @@ fs.Usage = func() {
 `SetOutput` changes. `PrintUsage(w, fs, synopsis, description)` writes a complete
 help message to an explicit writer without changing the flag set.
 
-flagx does not manage subcommands, registration order, groups, required/hidden
-flags, or Markdown, man page, and shell completion generation.
+flagx does not manage subcommands, groups, required/hidden flags, or Markdown,
+man page, and shell completion generation.
 
 ## Installation
 
