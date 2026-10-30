@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.0.4](https://github.com/Songmu/flagx/compare/v0.0.3...v0.0.4) - 2026-10-30
+
+- Add method-based FlagSet API with alias-aware help by @Songmu in https://github.com/Songmu/flagx/pull/10
+- Use Git tags for version tracking and remove unused declarations by @Songmu in https://github.com/Songmu/flagx/pull/15
+- Share registration test cases and isolate flag syntax coverage by @Songmu in https://github.com/Songmu/flagx/pull/14
+- Clarify help output tests and isolate default-value assertions by @Songmu in https://github.com/Songmu/flagx/pull/13
+- Refactor help rendering into focused formatting and ordering steps by @Songmu in https://github.com/Songmu/flagx/pull/12
+- remove CREDITS generation by @Songmu in https://github.com/Songmu/flagx/pull/16
+
 ## [v0.0.3](https://github.com/Songmu/flagx/compare/v0.0.2...v0.0.3) - 2026-10-30
 
 - Lower minimum Go version to 1.26 by @Songmu in https://github.com/Songmu/flagx/pull/8
