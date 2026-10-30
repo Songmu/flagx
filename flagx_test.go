@@ -116,39 +116,10 @@ func TestRegistration(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for _, name := range []string{"-option", "--option", "-o", "--o", "--other"} {
-				t.Run(name, func(t *testing.T) {
-					fs := flag.NewFlagSet("test", flag.ContinueOnError)
-					fs.SetOutput(io.Discard)
-					value := tt.register(fs, "o|other|option")
-					if got := value(); got != tt.initial {
-						t.Fatalf("initial value = %q, want %q", got, tt.initial)
-					}
-					if err := fs.Parse([]string{name + "=" + tt.input}); err != nil {
-						t.Fatal(err)
-					}
-					if got := value(); got != tt.want {
-						t.Errorf("value = %q, want %q", got, tt.want)
-					}
-					for _, alias := range []string{"option", "o", "other"} {
-						if got := fs.Lookup(alias).DefValue; got != tt.initial {
-							t.Errorf("%s default = %q, want %q", alias, got, tt.initial)
-						}
-					}
-					if fs.Lookup("o").Value.String() != fs.Lookup("option").Value.String() ||
-						fs.Lookup("other").Value.String() != fs.Lookup("option").Value.String() {
-						t.Error("aliases do not share the parsed value")
-					}
-				})
-			}
-			t.Run("single name", func(t *testing.T) {
+			testRegistration(t, tt.initial, tt.input, tt.want, func(names string) (registrationFlagSet, func() string) {
 				fs := flag.NewFlagSet("test", flag.ContinueOnError)
-				tt.register(fs, "option")
-				var names []string
-				fs.VisitAll(func(f *flag.Flag) { names = append(names, f.Name) })
-				if len(names) != 1 || names[0] != "option" {
-					t.Errorf("registered names = %v, want [option]", names)
-				}
+				fs.SetOutput(io.Discard)
+				return fs, tt.register(fs, names)
 			})
 		})
 	}

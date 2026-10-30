@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/netip"
 	"strings"
 	"testing"
@@ -16,111 +17,129 @@ import (
 func TestFlagSetRegistration(t *testing.T) {
 	tests := []struct {
 		name     string
-		register func(*flagx.FlagSet) func() string
+		register func(*flagx.FlagSet, string) func() string
 		initial  string
 		input    string
 		want     string
 	}{
-		{"String", func(fs *flagx.FlagSet) func() string {
-			v := fs.String("option|o", "initial", "an option")
+		{"String", func(fs *flagx.FlagSet, names string) func() string {
+			v := fs.String(names, "initial", "an option")
 			return func() string { return *v }
 		}, "initial", "changed", "changed"},
-		{"StringVar", func(fs *flagx.FlagSet) func() string {
+		{"StringVar", func(fs *flagx.FlagSet, names string) func() string {
 			var v string
-			fs.StringVar(&v, "option|o", "initial", "an option")
+			fs.StringVar(&v, names, "initial", "an option")
 			return func() string { return v }
 		}, "initial", "changed", "changed"},
-		{"Bool", func(fs *flagx.FlagSet) func() string {
-			v := fs.Bool("option|o", false, "an option")
+		{"Bool", func(fs *flagx.FlagSet, names string) func() string {
+			v := fs.Bool(names, false, "an option")
 			return func() string { return fmt.Sprint(*v) }
 		}, "false", "true", "true"},
-		{"BoolVar", func(fs *flagx.FlagSet) func() string {
+		{"BoolVar", func(fs *flagx.FlagSet, names string) func() string {
 			var v bool
-			fs.BoolVar(&v, "option|o", false, "an option")
+			fs.BoolVar(&v, names, false, "an option")
 			return func() string { return fmt.Sprint(v) }
 		}, "false", "true", "true"},
-		{"Int", func(fs *flagx.FlagSet) func() string {
-			v := fs.Int("option|o", 4, "an option")
+		{"Int", func(fs *flagx.FlagSet, names string) func() string {
+			v := fs.Int(names, 4, "an option")
 			return func() string { return fmt.Sprint(*v) }
 		}, "4", "-12", "-12"},
-		{"IntVar", func(fs *flagx.FlagSet) func() string {
+		{"IntVar", func(fs *flagx.FlagSet, names string) func() string {
 			var v int
-			fs.IntVar(&v, "option|o", 4, "an option")
+			fs.IntVar(&v, names, 4, "an option")
 			return func() string { return fmt.Sprint(v) }
 		}, "4", "-12", "-12"},
-		{"Int64", func(fs *flagx.FlagSet) func() string {
-			v := fs.Int64("option|o", 4, "an option")
+		{"Int64", func(fs *flagx.FlagSet, names string) func() string {
+			v := fs.Int64(names, 4, "an option")
 			return func() string { return fmt.Sprint(*v) }
 		}, "4", "-1099511627776", "-1099511627776"},
-		{"Int64Var", func(fs *flagx.FlagSet) func() string {
+		{"Int64Var", func(fs *flagx.FlagSet, names string) func() string {
 			var v int64
-			fs.Int64Var(&v, "option|o", 4, "an option")
+			fs.Int64Var(&v, names, 4, "an option")
 			return func() string { return fmt.Sprint(v) }
 		}, "4", "-1099511627776", "-1099511627776"},
-		{"Uint", func(fs *flagx.FlagSet) func() string {
-			v := fs.Uint("option|o", 4, "an option")
+		{"Uint", func(fs *flagx.FlagSet, names string) func() string {
+			v := fs.Uint(names, 4, "an option")
 			return func() string { return fmt.Sprint(*v) }
 		}, "4", "0xff", "255"},
-		{"UintVar", func(fs *flagx.FlagSet) func() string {
+		{"UintVar", func(fs *flagx.FlagSet, names string) func() string {
 			var v uint
-			fs.UintVar(&v, "option|o", 4, "an option")
+			fs.UintVar(&v, names, 4, "an option")
 			return func() string { return fmt.Sprint(v) }
 		}, "4", "0xff", "255"},
-		{"Uint64", func(fs *flagx.FlagSet) func() string {
-			v := fs.Uint64("option|o", 4, "an option")
+		{"Uint64", func(fs *flagx.FlagSet, names string) func() string {
+			v := fs.Uint64(names, 4, "an option")
 			return func() string { return fmt.Sprint(*v) }
 		}, "4", "18446744073709551615", "18446744073709551615"},
-		{"Uint64Var", func(fs *flagx.FlagSet) func() string {
+		{"Uint64Var", func(fs *flagx.FlagSet, names string) func() string {
 			var v uint64
-			fs.Uint64Var(&v, "option|o", 4, "an option")
+			fs.Uint64Var(&v, names, 4, "an option")
 			return func() string { return fmt.Sprint(v) }
 		}, "4", "18446744073709551615", "18446744073709551615"},
-		{"Float64", func(fs *flagx.FlagSet) func() string {
-			v := fs.Float64("option|o", 1.5, "an option")
+		{"Float64", func(fs *flagx.FlagSet, names string) func() string {
+			v := fs.Float64(names, 1.5, "an option")
 			return func() string { return fmt.Sprint(*v) }
 		}, "1.5", "-2.5e2", "-250"},
-		{"Float64Var", func(fs *flagx.FlagSet) func() string {
+		{"Float64Var", func(fs *flagx.FlagSet, names string) func() string {
 			var v float64
-			fs.Float64Var(&v, "option|o", 1.5, "an option")
+			fs.Float64Var(&v, names, 1.5, "an option")
 			return func() string { return fmt.Sprint(v) }
 		}, "1.5", "-2.5e2", "-250"},
-		{"Duration", func(fs *flagx.FlagSet) func() string {
-			v := fs.Duration("option|o", time.Second, "an option")
+		{"Duration", func(fs *flagx.FlagSet, names string) func() string {
+			v := fs.Duration(names, time.Second, "an option")
 			return func() string { return v.String() }
 		}, "1s", "2m", "2m0s"},
-		{"DurationVar", func(fs *flagx.FlagSet) func() string {
+		{"DurationVar", func(fs *flagx.FlagSet, names string) func() string {
 			var v time.Duration
-			fs.DurationVar(&v, "option|o", time.Second, "an option")
+			fs.DurationVar(&v, names, time.Second, "an option")
 			return func() string { return v.String() }
 		}, "1s", "2m", "2m0s"},
-		{"TextVar", func(fs *flagx.FlagSet) func() string {
+		{"TextVar", func(fs *flagx.FlagSet, names string) func() string {
 			var v netip.Addr
-			fs.TextVar(&v, "option|o", netip.MustParseAddr("127.0.0.1"), "an option")
+			fs.TextVar(&v, names, netip.MustParseAddr("127.0.0.1"), "an option")
 			return func() string { return v.String() }
 		}, "127.0.0.1", "::1", "::1"},
-		{"Var", func(fs *flagx.FlagSet) func() string {
+		{"Var", func(fs *flagx.FlagSet, names string) func() string {
 			v := otherString("initial")
-			fs.Var(&v, "option|o", "an option")
+			fs.Var(&v, names, "an option")
 			return v.String
 		}, "initial", "changed", "changed"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testRegistration(t, tt.initial, tt.input, tt.want, func(names string) (registrationFlagSet, func() string) {
+				fs := flagx.NewFlagSet("test", flag.ContinueOnError)
+				fs.SetOutput(io.Discard)
+				return fs, tt.register(fs, names)
+			})
+		})
+	}
+}
+
+func TestFlagSetCallbackRegistration(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		register func(*flagx.FlagSet) func() string
+		input    string
+		want     string
+	}{
 		{"Func", func(fs *flagx.FlagSet) func() string {
 			v := "initial"
 			fs.Func("option|o", "an option", func(s string) error { v = s; return nil })
 			return func() string { return v }
-		}, "initial", "changed", "changed"},
+		}, "changed", "changed"},
 		{"BoolFunc", func(fs *flagx.FlagSet) func() string {
 			v := "initial"
 			fs.BoolFunc("option|o", "an option", func(s string) error { v = s; return nil })
 			return func() string { return v }
-		}, "initial", "false", "false"},
-	}
-	for _, tt := range tests {
+		}, "false", "false"},
+	} {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, name := range []string{"--option", "-o"} {
 				fs := flagx.NewFlagSet("test", flag.ContinueOnError)
 				value := tt.register(fs)
-				if got := value(); got != tt.initial {
-					t.Fatalf("initial value = %q, want %q", got, tt.initial)
+				if got := value(); got != "initial" {
+					t.Fatalf("initial value = %q, want %q", got, "initial")
 				}
 				if fs.Lookup("option") == nil || fs.Lookup("o") == nil || fs.Lookup("option|o") != nil {
 					t.Fatal("names were not registered as aliases")
