@@ -34,7 +34,7 @@ const sampleDefaults = `  -output, -o file       write to file
 func assertUsageOutput(t *testing.T, label, got, want string) {
 	t.Helper()
 	if got != want {
-		t.Errorf("%s:\n%s\nwant:\n%s", label, got, want)
+		t.Errorf("%s:\n%s\nwant:\n%s\ngot (quoted): %q\nwant (quoted): %q", label, got, want, got, want)
 	}
 }
 
