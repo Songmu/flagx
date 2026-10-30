@@ -80,6 +80,9 @@ fs.Usage = flagx.Usage(fs, "myapp [options]", "")
 
 Use `&fs.FlagSet` when passing a `*flagx.FlagSet` to these functions or other
 APIs accepting a `*flag.FlagSet`.
+If another API parses `&fs.FlagSet` while `Usage` is nil (including a zero-value
+set), call `fs.Init(fs.Name(), fs.ErrorHandling())` before handing it off to
+install flagx's default help.
 
 Names omit leading hyphens and are split literally, without
 trimming whitespace. Empty names panic; duplicate and invalid names otherwise
@@ -101,7 +104,7 @@ within each kind because their registration order is unavailable. All names
 have one hyphen.
 
 Options registered through flagx come first, in registration order. Options
-registered only through `FlagSet` follow, sorted by their lexicographically
+registered only through `flag.FlagSet` follow, sorted by their lexicographically
 smallest long name, or their smallest short name if there is no long name.
 An option combining both kinds of registration uses its first flagx registration
 position. The first displayed name supplies the usage and default value when
