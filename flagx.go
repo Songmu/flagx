@@ -1,5 +1,7 @@
 // Package flagx adds flag aliases and formatted help to the standard
 // library's flag.FlagSet without changing its parsing rules.
+// Use NewFlagSet for a method-based API, or the package functions to extend
+// an existing flag.FlagSet.
 package flagx
 
 import (

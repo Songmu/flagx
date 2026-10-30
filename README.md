@@ -11,25 +11,27 @@ flagx
 [license]: https://github.com/Songmu/flagx/blob/main/LICENSE
 [PkgGoDev]: https://pkg.go.dev/github.com/Songmu/flagx
 
-Small helpers for flag aliases and formatted help, built on Go's
+Flag aliases and formatted help, built on Go's
 standard `flag.FlagSet`. No dependencies or changes to flag parsing.
 
 ## Synopsis
 
 ```go
-fs := flag.NewFlagSet("myapp", flag.ExitOnError)
+fs := flagx.NewFlagSet("myapp", flag.ExitOnError)
 
 var output string
 var verbose bool
 var jobs int
 var timeout time.Duration
 
-flagx.StringVar(fs, &output, "output|o", "", "write to `file`")
-flagx.BoolVar(fs, &verbose, "verbose|v", false, "verbose output")
-flagx.IntVar(fs, &jobs, "jobs|j", 4, "number of `workers`")
-flagx.DurationVar(fs, &timeout, "timeout|t", 30*time.Second, "timeout after `duration`")
+fs.StringVar(&output, "output|o", "", "write to `file`")
+fs.BoolVar(&verbose, "verbose|v", false, "verbose output")
+fs.IntVar(&jobs, "jobs|j", 4, "number of `workers`")
+fs.DurationVar(&timeout, "timeout|t", 30*time.Second, "timeout after `duration`")
 
-fs.Usage = flagx.Usage(fs, "myapp [options] <input>", "Process input files.")
+fs.Usage = func() {
+    fs.PrintUsage(fs.Output(), "myapp [options] <input>", "Process input files.")
+}
 fs.Parse(os.Args[1:])
 ```
 
@@ -51,14 +53,33 @@ Options:
 
 ## Description
 
-All registration helpers take a `*flag.FlagSet` as their first argument and
-accept one or more `|`-separated names. `String`, `Bool`, `Int`, `Int64`, `Uint`,
+`NewFlagSet(name, errorHandling)` returns a `*flagx.FlagSet` embedding
+`flag.FlagSet`. Its registration methods accept one or more `|`-separated names.
+`String`, `Bool`, `Int`, `Int64`, `Uint`,
 `Uint64`, `Float64`, and `Duration` return a pointer shared by all names;
 their `Var` forms bind an existing variable. `TextVar` binds a value implementing
 `encoding.TextUnmarshaler`, and `Var` accepts a custom `flag.Value`.
 `Func` and `BoolFunc` invoke a callback for each occurrence; `BoolFunc` allows
 omitting the value. Defaults and parsing follow the corresponding standard
 `flag.FlagSet` methods.
+
+Default help uses the flag set's current name as the synopsis and prints the
+formatted option list. Assign `fs.Usage` to customize it, as above.
+The zero value is usable with an empty name and `flag.ContinueOnError`;
+`Init` sets the name and error policy without clearing flags or custom help.
+Do not copy a `FlagSet` after first use.
+
+The package-level registration and help functions remain available for existing
+`*flag.FlagSet` values, taking the flag set as an argument:
+
+```go
+fs := flag.NewFlagSet("myapp", flag.ExitOnError)
+flagx.String(fs, "output|o", "", "write to `file`")
+fs.Usage = flagx.Usage(fs, "myapp [options]", "")
+```
+
+Use `&fs.FlagSet` when passing a `*flagx.FlagSet` to these functions or other
+APIs accepting a `*flag.FlagSet`.
 
 Names omit leading hyphens and are split literally, without
 trimming whitespace. Empty names panic; duplicate and invalid names otherwise
@@ -107,13 +128,13 @@ Use `PrintDefaults` to embed just the option list in your own help:
 fs.Usage = func() {
     fmt.Fprintln(fs.Output(), "Usage: myapp [options] <input>")
     fmt.Fprintln(fs.Output(), "\nOptions:")
-    flagx.PrintDefaults(fs)
+    fs.PrintDefaults()
 }
 ```
 
-`Usage` and `PrintDefaults` use the current `fs.Output()`, including later
-`SetOutput` changes. `PrintUsage(w, fs, synopsis, description)` writes a complete
-help message to an explicit writer without changing the flag set.
+Default help and `fs.PrintDefaults()` use the current `fs.Output()`, including
+later `SetOutput` changes. `fs.PrintUsage(w, synopsis, description)` writes a
+complete help message to an explicit writer without changing the flag set.
 
 flagx does not manage subcommands, groups, required/hidden flags, or Markdown,
 man page, and shell completion generation.
