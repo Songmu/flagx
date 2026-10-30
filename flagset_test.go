@@ -168,11 +168,11 @@ func TestFlagSetUsage(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			fs := tt.new()
+			if got := fs.Usage != nil; got != tt.embedded {
+				t.Fatalf("Usage installed before parsing = %t, want %t", got, tt.embedded)
+			}
 			parse := fs.Parse
 			if tt.embedded {
-				if fs.Usage == nil {
-					t.Fatal("Usage not installed before embedded parser handoff")
-				}
 				parse = fs.FlagSet.Parse
 			}
 			fs.String("output|o", "", "write to `file`")
@@ -185,28 +185,24 @@ func TestFlagSetUsage(t *testing.T) {
 				if err := parse([]string{name}); !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("Parse(%s) = %v, want flag.ErrHelp", name, err)
 				}
-				if got := original.String(); got != want {
-					t.Errorf("help = %q, want %q", got, want)
-				}
+				assertUsageOutput(t, "help "+name, original.String(), want)
 			}
+
 			original.Reset()
 			fs.SetOutput(&redirected)
 			fs.Usage()
-			if got := redirected.String(); got != want || original.Len() != 0 {
-				t.Errorf("Usage did not follow SetOutput: %q", got)
-			}
+			assertUsageOutput(t, "Usage after SetOutput", redirected.String(), want)
+			assertUsageOutput(t, "original output after SetOutput", original.String(), "")
+
 			redirected.Reset()
 			fs.PrintDefaults()
-			if got := redirected.String(); got != defaults {
-				t.Errorf("PrintDefaults = %q, want %q", got, defaults)
-			}
+			assertUsageOutput(t, "PrintDefaults", redirected.String(), defaults)
+
 			redirected.Reset()
 			if err := parse([]string{"--unknown"}); err == nil {
 				t.Fatal("unknown flag accepted")
 			}
-			if got := redirected.String(); got != "flag provided but not defined: -unknown\n"+want {
-				t.Errorf("error help = %q", got)
-			}
+			assertUsageOutput(t, "unknown flag error and help", redirected.String(), "flag provided but not defined: -unknown\n"+want)
 		})
 	}
 }
