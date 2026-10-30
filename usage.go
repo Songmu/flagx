@@ -48,13 +48,20 @@ type option struct {
 }
 
 func (o option) sortName() string {
-	var name string
+	var long, short string
 	for _, f := range o.flags {
-		if name == "" || lexicalNameLess(f.Name, name) {
-			name = f.Name
+		if utf8.RuneCountInString(f.Name) == 1 {
+			if short == "" || f.Name < short {
+				short = f.Name
+			}
+		} else if long == "" || f.Name < long {
+			long = f.Name
 		}
 	}
-	return name
+	if long != "" {
+		return long
+	}
+	return short
 }
 
 func (o option) label() string {
@@ -109,10 +116,6 @@ func nameLess(a, b string, declared map[string]nameOrder) bool {
 	if aKnown {
 		return aOrder.rank < bOrder.rank
 	}
-	return lexicalNameLess(a, b)
-}
-
-func lexicalNameLess(a, b string) bool {
 	aShort, bShort := utf8.RuneCountInString(a) == 1, utf8.RuneCountInString(b) == 1
 	if aShort != bShort {
 		return !aShort
