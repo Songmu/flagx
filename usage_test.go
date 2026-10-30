@@ -31,6 +31,13 @@ const sampleDefaults = `  -output, -o file       write to file
   -help, -h              Show this help message
 `
 
+func assertUsageOutput(t *testing.T, label, got, want string) {
+	t.Helper()
+	if got != want {
+		t.Errorf("%s:\n%s\nwant:\n%s\ngot (quoted): %q\nwant (quoted): %q", label, got, want, got, want)
+	}
+}
+
 func TestUsage(t *testing.T) {
 	fs := sampleFlags()
 	var original, redirected, explicit bytes.Buffer
@@ -42,64 +49,82 @@ func TestUsage(t *testing.T) {
 		if err := fs.Parse([]string{name}); !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("Parse(%s) = %v, want flag.ErrHelp", name, err)
 		}
-		if got := original.String(); got != want {
-			t.Errorf("help:\n%s\nwant:\n%s", got, want)
-		}
+		assertUsageOutput(t, "help "+name, original.String(), want)
 	}
 
+	original.Reset()
 	fs.SetOutput(&redirected)
 	fs.Usage()
-	if redirected.String() != want {
-		t.Errorf("Usage did not follow SetOutput: %q", redirected.String())
-	}
+	assertUsageOutput(t, "Usage after SetOutput", redirected.String(), want)
+	assertUsageOutput(t, "original output after SetOutput", original.String(), "")
+
 	redirected.Reset()
 	flagx.PrintDefaults(fs)
-	if got := redirected.String(); got != sampleDefaults {
-		t.Errorf("PrintDefaults = %q, want %q", got, sampleDefaults)
-	}
+	assertUsageOutput(t, "PrintDefaults", redirected.String(), sampleDefaults)
+
 	redirected.Reset()
 	flagx.PrintUsage(&explicit, fs, "myapp", "")
-	if got, want := explicit.String(), "Usage: myapp\n\nOptions:\n"+sampleDefaults; got != want {
-		t.Errorf("PrintUsage = %q, want %q", got, want)
-	}
-	if fs.Output() != &redirected || redirected.Len() != 0 {
-		t.Fatal("PrintUsage changed or wrote to fs.Output")
+	assertUsageOutput(t, "PrintUsage without description", explicit.String(), "Usage: myapp\n\nOptions:\n"+sampleDefaults)
+	assertUsageOutput(t, "fs.Output after PrintUsage", redirected.String(), "")
+	if fs.Output() != &redirected {
+		t.Fatal("PrintUsage changed fs.Output")
 	}
 }
 
 func TestDefaults(t *testing.T) {
-	fs := flag.NewFlagSet("test", flag.ContinueOnError)
-	fs.String("string", "hello\nworld", "a string")
-	fs.Bool("bool", true, "use `mode`")
-	fs.Int("int", 9, "an integer")
-	fs.Duration("duration", time.Minute, "a duration")
-	fs.String("zero-string", "", "empty")
-	fs.Bool("zero-bool", false, "off")
-	fs.Int("zero-int", 0, "zero")
-	fs.Duration("zero-duration", 0, "immediate")
-	if err := fs.Set("int", "100"); err != nil {
-		t.Fatal(err)
-	}
-	var out bytes.Buffer
-	fs.SetOutput(&out)
-	flagx.PrintDefaults(fs)
-	for _, want := range []string{
-		`a string (default "hello\nworld")`,
-		"use mode (default true)",
-		"an integer (default 9)",
-		"a duration (default 1m0s)",
+	for _, tt := range []struct {
+		name      string
+		register  func(*flag.FlagSet)
+		set       string
+		wantLabel string
+		wantUsage string
+	}{
+		{"string", func(fs *flag.FlagSet) {
+			fs.String("string", "hello\nworld", "a string")
+		}, "", "-string string", `a string (default "hello\nworld")`},
+		{"bool", func(fs *flag.FlagSet) {
+			fs.Bool("bool", true, "use `mode`")
+		}, "", "-bool", "use mode (default true)"},
+		{"int", func(fs *flag.FlagSet) {
+			fs.Int("int", 9, "an integer")
+		}, "100", "-int int", "an integer (default 9)"},
+		{"duration", func(fs *flag.FlagSet) {
+			fs.Duration("duration", time.Minute, "a duration")
+		}, "", "-duration duration", "a duration (default 1m0s)"},
+		{"zero-string", func(fs *flag.FlagSet) {
+			fs.String("zero-string", "", "empty")
+		}, "", "-zero-string string", "empty"},
+		{"zero-bool", func(fs *flag.FlagSet) {
+			fs.Bool("zero-bool", false, "off")
+		}, "", "-zero-bool", "off"},
+		{"zero-int", func(fs *flag.FlagSet) {
+			fs.Int("zero-int", 0, "zero")
+		}, "", "-zero-int int", "zero"},
+		{"zero-duration", func(fs *flag.FlagSet) {
+			fs.Duration("zero-duration", 0, "immediate")
+		}, "", "-zero-duration duration", "immediate"},
 	} {
-		if !strings.Contains(out.String(), want) {
-			t.Errorf("missing %q:\n%s", want, out.String())
-		}
-	}
-	for _, line := range strings.Split(out.String(), "\n") {
-		if strings.Contains(line, "-zero-") && strings.Contains(line, "(default") {
-			t.Errorf("zero default not omitted: %s", line)
-		}
-		if strings.Contains(line, "-bool ") && strings.Contains(line, "-bool mode") {
-			t.Errorf("boolean has a placeholder: %s", line)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			fs := flag.NewFlagSet("test", flag.ContinueOnError)
+			tt.register(fs)
+			if tt.set != "" {
+				if err := fs.Set(tt.name, tt.set); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var out bytes.Buffer
+			fs.SetOutput(&out)
+			flagx.PrintDefaults(fs)
+			// Check option semantics independently of column padding and built-in help.
+			index := strings.Index(out.String(), "  -"+tt.name+" ")
+			if index < 0 {
+				t.Fatalf("option %q missing:\n%s", tt.name, out.String())
+			}
+			line, _, _ := strings.Cut(out.String()[index:], "\n")
+			label, usage, _ := strings.Cut(strings.TrimSpace(line), "  ")
+			assertUsageOutput(t, "option label", label, tt.wantLabel)
+			assertUsageOutput(t, "option usage", strings.TrimSpace(usage), tt.wantUsage)
+		})
 	}
 }
 
