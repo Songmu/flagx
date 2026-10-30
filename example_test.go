@@ -19,6 +19,7 @@ func Example() {
 	if err := fs.Parse([]string{"-o", "result.txt", "--verbose", "input.txt"}); err != nil {
 		return
 	}
+
 	fmt.Println(output, verbose, fs.Args())
 	fs.Usage()
 	// Output:
@@ -26,6 +27,26 @@ func Example() {
 	// Usage: myapp [options] <input>
 	//
 	// Process input files.
+	//
+	// Options:
+	//   -output, -o file  write to file
+	//   -verbose, -v      verbose output
+	//   -help, -h         Show this help message
+}
+
+func ExampleNewFlagSet() {
+	fs := flagx.NewFlagSet("myapp", flag.ContinueOnError)
+	fs.SetOutput(os.Stdout)
+	output := fs.String("output|o", "", "write to `file`")
+	verbose := fs.Bool("verbose|v", false, "verbose output")
+	if err := fs.Parse([]string{"-o", "result.txt", "--verbose", "input.txt"}); err != nil {
+		return
+	}
+	fmt.Println(*output, *verbose, fs.Args())
+	fs.Usage()
+	// Output:
+	// result.txt true [input.txt]
+	// Usage: myapp
 	//
 	// Options:
 	//   -output, -o file  write to file
