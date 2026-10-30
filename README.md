@@ -138,6 +138,8 @@ fs.Usage = func() {
 Default help and `fs.PrintDefaults()` use the current `fs.Output()`, including
 later `SetOutput` changes. `fs.PrintUsage(w, synopsis, description)` writes a
 complete help message to an explicit writer without changing the flag set.
+For a standard `*flag.FlagSet`, use `flagx.PrintDefaults(fs)` and
+`flagx.PrintUsage(w, fs, synopsis, description)` instead.
 
 flagx does not manage subcommands, groups, required/hidden flags, or Markdown,
 man page, and shell completion generation.
