@@ -51,9 +51,16 @@ Options:
 
 ## Description
 
-`StringVar`, `BoolVar`, `IntVar`, and `DurationVar` register one or more
-`|`-separated names against the same variable. `Var` does the same for a custom
-`flag.Value`. Names omit leading hyphens and are split literally, without
+All registration helpers take a `*flag.FlagSet` as their first argument and
+accept one or more `|`-separated names. `String`, `Bool`, `Int`, `Int64`, `Uint`,
+`Uint64`, `Float64`, and `Duration` return a pointer shared by all names;
+their `Var` forms bind an existing variable. `TextVar` binds a value implementing
+`encoding.TextUnmarshaler`, and `Var` accepts a custom `flag.Value`.
+`Func` and `BoolFunc` invoke a callback for each occurrence; `BoolFunc` allows
+omitting the value. Defaults and parsing follow the corresponding standard
+`flag.FlagSet` methods.
+
+Names omit leading hyphens and are split literally, without
 trimming whitespace. Empty names panic; duplicate and invalid names otherwise
 follow the standard library's behavior.
 
