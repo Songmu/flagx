@@ -48,20 +48,13 @@ type option struct {
 }
 
 func (o option) sortName() string {
-	var long, short string
+	var name string
 	for _, f := range o.flags {
-		if utf8.RuneCountInString(f.Name) == 1 {
-			if short == "" || f.Name < short {
-				short = f.Name
-			}
-		} else if long == "" || f.Name < long {
-			long = f.Name
+		if name == "" || lexicalNameLess(f.Name, name) {
+			name = f.Name
 		}
 	}
-	if long != "" {
-		return long
-	}
-	return short
+	return name
 }
 
 func (o option) label() string {
@@ -83,15 +76,67 @@ func (o option) label() string {
 	return label
 }
 
-func options(fs *flag.FlagSet) []option {
-	type identity struct {
-		typ reflect.Type
-		ptr uintptr
+func (o option) description() string {
+	f := o.flags[0]
+	_, usage := flag.UnquoteUsage(f)
+	if f.Value == nil || isZeroDefault(f) {
+		return usage
 	}
+	value := f.DefValue
+	typ := reflect.TypeOf(f.Value)
+	if typ.Kind() == reflect.Pointer && typ.Elem().Kind() == reflect.String {
+		value = fmt.Sprintf("%q", value)
+	}
+	return usage + " (default " + value + ")"
+}
+
+func (o option) less(other option) bool {
+	if o.order == other.order {
+		return o.sortName() < other.sortName()
+	}
+	if o.order < 0 {
+		return false
+	}
+	return other.order < 0 || o.order < other.order
+}
+
+func nameLess(a, b string, declared map[string]nameOrder) bool {
+	aOrder, aKnown := declared[a]
+	bOrder, bKnown := declared[b]
+	if aKnown != bKnown {
+		return aKnown
+	}
+	if aKnown {
+		return aOrder.rank < bOrder.rank
+	}
+	return lexicalNameLess(a, b)
+}
+
+func lexicalNameLess(a, b string) bool {
+	aShort, bShort := utf8.RuneCountInString(a) == 1, utf8.RuneCountInString(b) == 1
+	if aShort != bShort {
+		return !aShort
+	}
+	return a < b
+}
+
+type valueIdentity struct {
+	typ reflect.Type
+	ptr uintptr
+}
+
+func pointerIdentity(value flag.Value) (valueIdentity, bool) {
+	v := reflect.ValueOf(value)
+	if !v.IsValid() || v.Kind() != reflect.Pointer || v.IsNil() || v.Type().Elem().Size() == 0 {
+		return valueIdentity{}, false
+	}
+	return valueIdentity{v.Type(), v.Pointer()}, true
+}
+
+func groupOptions(fs *flag.FlagSet, declared map[string]nameOrder) []option {
 	var result []option
-	byPointer := make(map[identity]int)
+	byPointer := make(map[valueIdentity]int)
 	byGroup := make(map[int]int)
-	declared := registeredNames(fs)
 	fs.VisitAll(func(f *flag.Flag) {
 		index := -1
 		order, known := declared[f.Name]
@@ -100,11 +145,8 @@ func options(fs *flag.FlagSet) []option {
 				index = i
 			}
 		}
-		v := reflect.ValueOf(f.Value)
-		pointer := v.IsValid() && v.Kind() == reflect.Pointer && !v.IsNil() && v.Type().Elem().Size() > 0
-		var key identity
+		key, pointer := pointerIdentity(f.Value)
 		if pointer {
-			key = identity{v.Type(), v.Pointer()}
 			if i, ok := byPointer[key]; ok {
 				index = i
 			}
@@ -124,7 +166,12 @@ func options(fs *flag.FlagSet) []option {
 			byPointer[key] = index
 		}
 	})
+	return result
+}
 
+func options(fs *flag.FlagSet) []option {
+	declared := registeredNames(fs)
+	result := groupOptions(fs, declared)
 	help := option{order: -1}
 	for _, name := range []string{"help", "h"} {
 		if fs.Lookup(name) == nil {
@@ -136,34 +183,11 @@ func options(fs *flag.FlagSet) []option {
 	}
 	for _, o := range result {
 		sort.Slice(o.flags, func(i, j int) bool {
-			a, b := o.flags[i].Name, o.flags[j].Name
-			aOrder, aKnown := declared[a]
-			bOrder, bKnown := declared[b]
-			if aKnown != bKnown {
-				return aKnown
-			}
-			if aKnown {
-				return aOrder.rank < bOrder.rank
-			}
-			aShort, bShort := utf8.RuneCountInString(a) == 1, utf8.RuneCountInString(b) == 1
-			if aShort != bShort {
-				return !aShort
-			}
-			return a < b
+			return nameLess(o.flags[i].Name, o.flags[j].Name, declared)
 		})
 	}
 	sort.Slice(result, func(i, j int) bool {
-		a, b := result[i].order, result[j].order
-		if a != b {
-			if a < 0 {
-				return false
-			}
-			if b < 0 {
-				return true
-			}
-			return a < b
-		}
-		return result[i].sortName() < result[j].sortName()
+		return result[i].less(result[j])
 	})
 	return result
 }
@@ -184,16 +208,7 @@ func printDefaults(w io.Writer, fs *flag.FlagSet) {
 	}
 	indent := strings.Repeat(" ", width+4)
 	for i, o := range opts {
-		f := o.flags[0]
-		_, usage := flag.UnquoteUsage(f)
-		if f.Value != nil && !isZeroDefault(f) {
-			value := f.DefValue
-			v := reflect.TypeOf(f.Value)
-			if v.Kind() == reflect.Pointer && v.Elem().Kind() == reflect.String {
-				value = fmt.Sprintf("%q", value)
-			}
-			usage += " (default " + value + ")"
-		}
+		usage := o.description()
 		fmt.Fprintf(w, "  %s", labels[i])
 		if n := utf8.RuneCountInString(labels[i]); n > width {
 			fmt.Fprint(w, "\n", indent)
