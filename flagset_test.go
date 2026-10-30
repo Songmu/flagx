@@ -138,29 +138,43 @@ func TestFlagSetRegistration(t *testing.T) {
 
 func TestFlagSetUsage(t *testing.T) {
 	for _, tt := range []struct {
-		name string
-		new  func() *flagx.FlagSet
+		name     string
+		new      func() *flagx.FlagSet
+		embedded bool
 	}{
-		{"constructor", func() *flagx.FlagSet { return flagx.NewFlagSet("test", flag.ContinueOnError) }},
-		{"zero", func() *flagx.FlagSet { return new(flagx.FlagSet) }},
+		{"constructor", func() *flagx.FlagSet { return flagx.NewFlagSet("test", flag.ContinueOnError) }, true},
+		{"zero", func() *flagx.FlagSet { return new(flagx.FlagSet) }, false},
 		{"initialized", func() *flagx.FlagSet {
 			fs := new(flagx.FlagSet)
 			fs.Init("test", flag.ContinueOnError)
 			return fs
-		}},
+		}, true},
 		{"renamed", func() *flagx.FlagSet {
 			fs := flagx.NewFlagSet("old", flag.ContinueOnError)
 			fs.Init("test", flag.ContinueOnError)
 			return fs
-		}},
+		}, true},
 		{"nil usage", func() *flagx.FlagSet {
 			fs := flagx.NewFlagSet("test", flag.ContinueOnError)
 			fs.Usage = nil
 			return fs
-		}},
+		}, false},
+		{"nil usage initialized", func() *flagx.FlagSet {
+			fs := flagx.NewFlagSet("test", flag.ContinueOnError)
+			fs.Usage = nil
+			fs.Init(fs.Name(), fs.ErrorHandling())
+			return fs
+		}, true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			fs := tt.new()
+			parse := fs.Parse
+			if tt.embedded {
+				if fs.Usage == nil {
+					t.Fatal("Usage not installed before embedded parser handoff")
+				}
+				parse = fs.FlagSet.Parse
+			}
 			fs.String("output|o", "", "write to `file`")
 			var original, redirected bytes.Buffer
 			fs.SetOutput(&original)
@@ -168,7 +182,7 @@ func TestFlagSetUsage(t *testing.T) {
 			want := "Usage: " + fs.Name() + "\n\nOptions:\n" + defaults
 			for _, name := range []string{"-h", "--help"} {
 				original.Reset()
-				if err := fs.Parse([]string{name}); !errors.Is(err, flag.ErrHelp) {
+				if err := parse([]string{name}); !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("Parse(%s) = %v, want flag.ErrHelp", name, err)
 				}
 				if got := original.String(); got != want {
@@ -187,7 +201,7 @@ func TestFlagSetUsage(t *testing.T) {
 				t.Errorf("PrintDefaults = %q, want %q", got, defaults)
 			}
 			redirected.Reset()
-			if err := fs.Parse([]string{"--unknown"}); err == nil {
+			if err := parse([]string{"--unknown"}); err == nil {
 				t.Fatal("unknown flag accepted")
 			}
 			if got := redirected.String(); got != "flag provided but not defined: -unknown\n"+want {
