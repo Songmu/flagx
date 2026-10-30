@@ -27,96 +27,94 @@ func TestRegistration(t *testing.T) {
 	tests := []struct {
 		name     string
 		register func(*flag.FlagSet, string) func() string
-		initial  string
-		input    string
-		want     string
+		values   registrationValues
 	}{
 		{"string", func(fs *flag.FlagSet, names string) func() string {
 			var v string
 			flagx.StringVar(fs, &v, names, "initial", "an option")
 			return func() string { return v }
-		}, "initial", "changed", "changed"},
+		}, registrationData.stringValue},
 		{"bool", func(fs *flag.FlagSet, names string) func() string {
 			var v bool
 			flagx.BoolVar(fs, &v, names, false, "an option")
 			return func() string { return fmt.Sprint(v) }
-		}, "false", "true", "true"},
+		}, registrationData.boolValue},
 		{"int", func(fs *flag.FlagSet, names string) func() string {
 			var v int
 			flagx.IntVar(fs, &v, names, 4, "an option")
 			return func() string { return fmt.Sprint(v) }
-		}, "4", "12", "12"},
+		}, registrationData.intValue},
 		{"duration", func(fs *flag.FlagSet, names string) func() string {
 			var v time.Duration
 			flagx.DurationVar(fs, &v, names, time.Second, "an option")
 			return func() string { return v.String() }
-		}, "1s", "2m", "2m0s"},
+		}, registrationData.durationValue},
 		{"int64", func(fs *flag.FlagSet, names string) func() string {
 			var v int64
 			flagx.Int64Var(fs, &v, names, -4, "an option")
 			return func() string { return fmt.Sprint(v) }
-		}, "-4", "-1099511627776", "-1099511627776"},
+		}, registrationData.int64Value},
 		{"uint", func(fs *flag.FlagSet, names string) func() string {
 			var v uint
 			flagx.UintVar(fs, &v, names, 4, "an option")
 			return func() string { return fmt.Sprint(v) }
-		}, "4", "0xff", "255"},
+		}, registrationData.uintValue},
 		{"uint64", func(fs *flag.FlagSet, names string) func() string {
 			var v uint64
 			flagx.Uint64Var(fs, &v, names, 4, "an option")
 			return func() string { return fmt.Sprint(v) }
-		}, "4", "18446744073709551615", "18446744073709551615"},
+		}, registrationData.uint64Value},
 		{"float64", func(fs *flag.FlagSet, names string) func() string {
 			var v float64
 			flagx.Float64Var(fs, &v, names, 1.5, "an option")
 			return func() string { return fmt.Sprint(v) }
-		}, "1.5", "-2.5e2", "-250"},
+		}, registrationData.float64Value},
 		{"text", func(fs *flag.FlagSet, names string) func() string {
 			var v netip.Addr
 			flagx.TextVar(fs, &v, names, netip.MustParseAddr("127.0.0.1"), "an option")
 			return func() string { return v.String() }
-		}, "127.0.0.1", "::1", "::1"},
+		}, registrationData.textValue},
 		{"String", func(fs *flag.FlagSet, names string) func() string {
 			v := flagx.String(fs, names, "initial", "an option")
 			return func() string { return *v }
-		}, "initial", "changed", "changed"},
+		}, registrationData.stringValue},
 		{"Bool", func(fs *flag.FlagSet, names string) func() string {
 			v := flagx.Bool(fs, names, false, "an option")
 			return func() string { return fmt.Sprint(*v) }
-		}, "false", "true", "true"},
+		}, registrationData.boolValue},
 		{"Int", func(fs *flag.FlagSet, names string) func() string {
 			v := flagx.Int(fs, names, 4, "an option")
 			return func() string { return fmt.Sprint(*v) }
-		}, "4", "12", "12"},
+		}, registrationData.intValue},
 		{"Int64", func(fs *flag.FlagSet, names string) func() string {
 			v := flagx.Int64(fs, names, -4, "an option")
 			return func() string { return fmt.Sprint(*v) }
-		}, "-4", "-1099511627776", "-1099511627776"},
+		}, registrationData.int64Value},
 		{"Uint", func(fs *flag.FlagSet, names string) func() string {
 			v := flagx.Uint(fs, names, 4, "an option")
 			return func() string { return fmt.Sprint(*v) }
-		}, "4", "0xff", "255"},
+		}, registrationData.uintValue},
 		{"Uint64", func(fs *flag.FlagSet, names string) func() string {
 			v := flagx.Uint64(fs, names, 4, "an option")
 			return func() string { return fmt.Sprint(*v) }
-		}, "4", "18446744073709551615", "18446744073709551615"},
+		}, registrationData.uint64Value},
 		{"Float64", func(fs *flag.FlagSet, names string) func() string {
 			v := flagx.Float64(fs, names, 1.5, "an option")
 			return func() string { return fmt.Sprint(*v) }
-		}, "1.5", "-2.5e2", "-250"},
+		}, registrationData.float64Value},
 		{"Duration", func(fs *flag.FlagSet, names string) func() string {
 			v := flagx.Duration(fs, names, time.Second, "an option")
 			return func() string { return v.String() }
-		}, "1s", "2m", "2m0s"},
+		}, registrationData.durationValue},
 		{"value", func(fs *flag.FlagSet, names string) func() string {
 			v := listValue{"initial"}
 			flagx.Var(fs, &v, names, "an option")
 			return v.String
-		}, "initial", "changed", "initial,changed"},
+		}, registrationValues{"initial", "changed", "initial,changed"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testRegistration(t, tt.initial, tt.input, tt.want, func(names string) (registrationFlagSet, func() string) {
+			testRegistration(t, tt.values, func(names string) (registrationFlagSet, func() string) {
 				fs := flag.NewFlagSet("test", flag.ContinueOnError)
 				fs.SetOutput(io.Discard)
 				return fs, tt.register(fs, names)
