@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.0.2](https://github.com/Songmu/flagx/compare/v0.0.1...v0.0.2) - 2026-10-30
+
+- Complete alias-aware standard flag registration helpers by @Songmu in https://github.com/Songmu/flagx/pull/6
+
 ## [v0.0.1](https://github.com/Songmu/flagx/commits/v0.0.1) - 2026-10-29
 
 - Implement flag aliases and formatted usage by @Songmu in https://github.com/Songmu/flagx/pull/4
