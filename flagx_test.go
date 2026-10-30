@@ -189,9 +189,10 @@ func TestCallbackRegistration(t *testing.T) {
 		register func(*flag.FlagSet, string, string, func(string) error)
 		args     []string
 		want     []string
+		help     string
 	}{
-		{"Func", flagx.Func, []string{"--option=first", "-o", "second", "--option=third"}, []string{"first", "second", "third"}},
-		{"BoolFunc", flagx.BoolFunc, []string{"--option", "-o=false", "--option=true"}, []string{"true", "false", "true"}},
+		{"Func", flagx.Func, []string{"--option=first", "-o", "second", "--option=third"}, []string{"first", "second", "third"}, "  -option, -o value  callback\n"},
+		{"BoolFunc", flagx.BoolFunc, []string{"--option", "-o=false", "--option=true"}, []string{"true", "false", "true"}, "  -option, -o  callback\n"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			fs := flag.NewFlagSet("test", flag.ContinueOnError)
@@ -216,11 +217,7 @@ func TestCallbackRegistration(t *testing.T) {
 				t.Errorf("callback values = %v, want %v", got, tt.want)
 			}
 			flagx.PrintDefaults(fs)
-			label := "-option, -o"
-			if tt.name == "Func" {
-				label += " value"
-			}
-			if !strings.Contains(out.String(), label) || strings.Count(out.String(), "callback") != 1 {
+			if !strings.Contains(out.String(), tt.help) || strings.Count(out.String(), "callback") != 1 {
 				t.Errorf("callback aliases not grouped correctly:\n%s", out.String())
 			}
 			for _, name := range []string{"option", "o"} {

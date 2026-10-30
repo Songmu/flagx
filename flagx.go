@@ -147,7 +147,7 @@ func Duration(fs *flag.FlagSet, names string, value time.Duration, usage string)
 
 // TextVar registers a text flag under the |-separated names, as in Var.
 // All names write to p, which is initialized to value.
-// The default value must have the same type as p, as required by flag.FlagSet.TextVar.
+// p must be a pointer; value must have its type or the type it points to.
 func TextVar(fs *flag.FlagSet, p encoding.TextUnmarshaler, names string, value encoding.TextMarshaler, usage string) {
 	registerNames(fs, names, func(name string) {
 		fs.TextVar(p, name, value, usage)
