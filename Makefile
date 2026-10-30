@@ -10,6 +10,6 @@ test:
 	go test
 
 .PHONY: prepare-release
-prepare-release: devel-deps
+prepare-release:
 	go mod tidy
 	git update-index --add --remove -- go.mod go.sum
