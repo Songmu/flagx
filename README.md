@@ -11,8 +11,12 @@ flagx
 [license]: https://github.com/Songmu/flagx/blob/main/LICENSE
 [PkgGoDev]: https://pkg.go.dev/github.com/Songmu/flagx
 
-Flag aliases and formatted help, built on Go's
-standard `flag.FlagSet`. No dependencies or changes to flag parsing.
+A lightweight, dependency-free flag library with an API matching Go's standard
+`flag.FlagSet` and the same parsing rules. It adds two conveniences:
+
+- Register aliases together with `|`, such as `"output|o"`.
+- Display help in registration order rather than alphabetical order, with aliases
+  grouped on one line.
 
 ## Synopsis
 
@@ -51,81 +55,27 @@ Options:
   -help, -h              Show this help message
 ```
 
-## Description
+## Usage
 
-`NewFlagSet(name, errorHandling)` returns a `*flagx.FlagSet` embedding
-`flag.FlagSet`. Its registration methods accept one or more `|`-separated names.
-`String`, `Bool`, `Int`, `Int64`, `Uint`,
-`Uint64`, `Float64`, and `Duration` return a pointer shared by all names;
-their `Var` forms bind an existing variable. `TextVar` binds a value implementing
-`encoding.TextUnmarshaler`, and `Var` accepts a custom `flag.Value`.
-`Func` and `BoolFunc` invoke a callback for each occurrence; `BoolFunc` allows
-omitting the value. Defaults and parsing follow the corresponding standard
-`flag.FlagSet` methods.
+`flagx.FlagSet` embeds `flag.FlagSet` and provides the same registration methods,
+including custom values and callbacks. Use them as usual, with `|`-separated
+names to register aliases sharing one value. Names omit leading hyphens; a single
+name works too. Aliases need not be a long/short pair, and their specified order
+is preserved in help: `"o|output"` displays as `-o, -output string`.
 
-Default help uses the flag set's current name as the synopsis and prints the
-formatted option list. Assign `fs.Usage` to customize it, as above.
-The zero value is usable with an empty name and `flag.ContinueOnError`;
-`Init` sets the name and error policy without clearing flags or custom help.
-Do not copy a `FlagSet` after first use.
+Options registered through flagx appear in registration order, as in the example
+above: output, verbose, jobs, timeout. Flags registered directly through the
+embedded `flag.FlagSet` follow in alphabetical order.
 
-The package-level registration and help functions remain available for existing
-`*flag.FlagSet` values, taking the flag set as an argument:
-
-```go
-fs := flag.NewFlagSet("myapp", flag.ExitOnError)
-flagx.String(fs, "output|o", "", "write to `file`")
-fs.Usage = flagx.Usage(fs, "myapp [options]", "")
-```
-
-Use `&fs.FlagSet` when passing a `*flagx.FlagSet` to these functions or other
-APIs accepting a `*flag.FlagSet`.
-If another API parses `&fs.FlagSet` while `Usage` is nil (including a zero-value
-set), call `fs.Init(fs.Name(), fs.ErrorHandling())` before handing it off to
-install flagx's default help.
-
-Names omit leading hyphens and are split literally, without
-trimming whitespace. Empty names panic; duplicate and invalid names otherwise
-follow the standard library's behavior.
-
-Names are aliases, not a required long/short pair: `"output"`, `"output|o"`,
-`"o|output"`, `"aa|bb"`, and `"output|out|o"` are all accepted. Help preserves the
-specified name order, so `"o|output"` displays as `-o, -output string`.
-
-Both `-output` and `--output` work, as do `-o` and `--o`. Standard `flag`
-semantics still apply: parsing stops at the first positional argument, short
-flags cannot be bundled, and bool flags do not require a value.
-
-Help combines names registered together and also values with the same pointer
-and concrete type, including flags registered directly through `flag.FlagSet`.
-Within each option, flagx-registered names retain their registration order;
-directly registered names follow, sorted long before short and lexicographically
-within each kind because their registration order is unavailable. All names
-have one hyphen.
-
-Options registered through flagx come first, in registration order. Options
-registered only through `flag.FlagSet` follow, sorted by their lexicographically
-smallest long name, or their smallest short name if there is no long name.
-An option combining both kinds of registration uses its first flagx registration
-position. The first displayed name supplies the usage and default value when
-aliases have different metadata.
-
-Pointer-based grouping of separately registered flags is a heuristic.
-Non-pointer values and pointers to zero-sized values are grouped only when their
-names are registered together.
-Backquoted placeholders use `flag.UnquoteUsage`; bool placeholders are omitted.
-Nonzero registration-time defaults are shown, with string defaults quoted.
-Custom values are compared with their type's zero value; if its `String` method
-panics, the default is shown without interrupting help output.
-
-`help` and `h` are not registered: standard `flag` handles undefined help names.
-The option list displays missing help names and preserves explicitly registered
-ones. An explicitly registered help flag has its normal parsing behavior, so
-the application is responsible for handling it.
+Parsing is unchanged: both `-output` and `--output` work, parsing stops at the
+first positional argument, short flags cannot be bundled, and bool flags do not
+require a value.
 
 ### Custom help
 
-Use `PrintDefaults` to embed just the option list in your own help:
+Default help prints the flag set's name and option list. Assign `fs.Usage` and
+call `fs.PrintUsage` to add a synopsis and description, as above, or use
+`PrintDefaults` to embed just the option list:
 
 ```go
 fs.Usage = func() {
@@ -135,14 +85,23 @@ fs.Usage = func() {
 }
 ```
 
-Default help and `fs.PrintDefaults()` use the current `fs.Output()`, including
-later `SetOutput` changes. `fs.PrintUsage(w, synopsis, description)` writes a
-complete help message to an explicit writer without changing the flag set.
-For a standard `*flag.FlagSet`, use `flagx.PrintDefaults(fs)` and
-`flagx.PrintUsage(w, fs, synopsis, description)` instead.
+Default help and `PrintDefaults` write to `fs.Output()`; change it with
+`fs.SetOutput(w)`. Help includes `-help` and `-h` without registering them,
+leaving their handling to standard `flag`. If you register either explicitly,
+your application must handle it.
 
-flagx does not manage subcommands, groups, required/hidden flags, or Markdown,
-man page, and shell completion generation.
+### Existing flag sets
+
+Package-level functions add the same features to an existing `*flag.FlagSet`:
+
+```go
+fs := flag.NewFlagSet("myapp", flag.ExitOnError)
+flagx.String(fs, "output|o", "", "write to `file`")
+fs.Usage = flagx.Usage(fs, "myapp [options]", "")
+```
+
+Use `&fs.FlagSet` to pass a `*flagx.FlagSet` to APIs accepting a `*flag.FlagSet`.
+See the [package reference][PkgGoDev] for the full API.
 
 ## Installation
 
