@@ -1,5 +1,5 @@
-// Package flagx adds flag aliases and formatted help to the standard
-// library's flag.FlagSet without changing its parsing rules.
+// Package flagx is a lightweight flag library with the standard flag.FlagSet API
+// and parsing rules, adding alias registration and help in registration order.
 // Use NewFlagSet for a method-based API, or the package functions to extend
 // an existing flag.FlagSet.
 package flagx
