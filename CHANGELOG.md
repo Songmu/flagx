@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.0.5](https://github.com/Songmu/flagx/compare/v0.0.4...v0.0.5) - 2026-10-31
+
+- docs: simplify overview around aliases and registration-order help by @Songmu in https://github.com/Songmu/flagx/pull/17
+- docs: use default help in the README synopsis by @Songmu in https://github.com/Songmu/flagx/pull/19
+
 ## [v0.0.4](https://github.com/Songmu/flagx/compare/v0.0.3...v0.0.4) - 2026-10-30
 
 - Add method-based FlagSet API with alias-aware help by @Songmu in https://github.com/Songmu/flagx/pull/10
