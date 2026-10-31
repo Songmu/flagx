@@ -33,9 +33,6 @@ fs.BoolVar(&verbose, "verbose|v", false, "verbose output")
 fs.IntVar(&jobs, "jobs|j", 4, "number of `workers`")
 fs.DurationVar(&timeout, "timeout|t", 30*time.Second, "timeout after `duration`")
 
-fs.Usage = func() {
-    fs.PrintUsage(fs.Output(), "myapp [options] <input>", "Process input files.")
-}
 fs.Parse(os.Args[1:])
 ```
 
@@ -43,9 +40,7 @@ Import `github.com/Songmu/flagx` alongside `flag`, `os`, and `time`.
 Running `myapp --help` prints:
 
 ```text
-Usage: myapp [options] <input>
-
-Process input files.
+Usage: myapp
 
 Options:
   -output, -o file       write to file
@@ -74,7 +69,7 @@ require a value.
 ### Custom help
 
 Default help prints the flag set's name and option list. Assign `fs.Usage` and
-call `fs.PrintUsage` to add a synopsis and description, as above, or use
+call `fs.PrintUsage` to add a synopsis and description, or use
 `PrintDefaults` to embed just the option list:
 
 ```go
